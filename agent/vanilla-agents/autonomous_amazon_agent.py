@@ -12,7 +12,54 @@ load_dotenv()
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
+tools = [{
+    "type": "function",
+    "function": {
+        "name": "search_amazon",
+        "description": "Search for products on Amazon.com",
+        "parameters":{
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The search query for the product"
+                },
+                "price_range": {
+                    "type": "object",
+                    "description": "The price range for the product",
+                    "properties": {
+                        "minPrice": {
+                            "type": ["number", "null"],
+                            "description": "The minimum price for the product"
+                        },
+                        "maxPrice": {
+                            "type": ["number", "null"],
+                            "description": "The maximum price for the product"
+                        }
+                    },
+                },
+                "rating_range": {
+                    "type": "object",
+                    "description": "The rating range for the product",
+                    "properties": {
+                        "minRating": {
+                            "type": ["number", "null"],
+                            "description": "The minimum rating for the product"
+                        },
+                        "maxRating": {
+                            "type": ["number", "null"],
+                            "description": "The maximum rating for the product"
+                        }
+                    }
+                },
+                "is_prime_eligible": {
+                    "type": "boolean",
+                    "description": "Whether the product is prime eligible"
+                }
+            }
+        }
+    }
+}]
 
 class AmazonShoppingAgent:
     def __init__(self):
@@ -141,111 +188,3 @@ class AmazonShoppingAgent:
         except Exception as e:
             logger.error(f"Search tool error: {e}")
             return []
-    
-    def _rank_products_tool(self, products: List[ProductInfo], preferences: SearchPreferences):
-
-        products_json = json.dumps([product.model_dump() for product in products])
-        preferences_json = json.dumps(preferences.model_dump())
-
-        system_prompt = """
-        You are a product ranking expert, with a particular focus on Amazon products.
-        Your job is to evaluate a list of products against user preferences and return a ranked list of products
-        based on how well they match the user's preferences.
-
-        For each product, provide:
-        1. A numeric score (0-100)
-        2. A rank position (1 is best)
-        3. Specific reasons why this product matches the preferences
-        4. Any potential concerns or drawbacks
-
-        Return your analysis as a JSON object with the following structure:
-        {
-            "ranked_products": [
-                {
-                    "product": {original product object},
-                    "rank": int,
-                    "score": float,
-                    "match_reasons": ["reason1", "reason2", ...],
-                    "concerns": ["concern1", "concern2", ...]
-                },
-                ...
-            ],
-            "top_pick": {same structure as above},
-            "preferences_used": {preferences object},
-            "ranking_explanation": "string explaining ranking methodology"
-        }
-        """
-
-        user_prompt = f"""
-        Analyze these products:
-        {products_json}
-        
-        Based on these user preferences:
-        {preferences_json}
-        """
-        try:
-            response = self.openai_client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.1
-            )
-
-            content = response.choices[0].message.content
-            ranking_data = json.loads(content)
-            
-            return ranking_data
-        except Exception as e: 
-            raise ValueError(f"Failed to rank products: {e}")
-
-tools = [{
-    "type": "function",
-    "function": {
-        "name": "search_amazon",
-        "description": "Search for products on Amazon.com",
-        "parameters":{
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "The search query for the product"
-                },
-                "price_range": {
-                    "type": "object",
-                    "description": "The price range for the product",
-                    "properties": {
-                        "minPrice": {
-                            "type": ["number", "null"],
-                            "description": "The minimum price for the product"
-                        },
-                        "maxPrice": {
-                            "type": ["number", "null"],
-                            "description": "The maximum price for the product"
-                        }
-                    },
-                },
-                "rating_range": {
-                    "type": "object",
-                    "description": "The rating range for the product",
-                    "properties": {
-                        "minRating": {
-                            "type": ["number", "null"],
-                            "description": "The minimum rating for the product"
-                        },
-                        "maxRating": {
-                            "type": ["number", "null"],
-                            "description": "The maximum rating for the product"
-                        }
-                    }
-                },
-                "is_prime_eligible": {
-                    "type": "boolean",
-                    "description": "Whether the product is prime eligible"
-                }
-            }
-        }
-    }
-}]
