@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Any
+from typing import Dict, List
 from openai import OpenAI
 from openai.types.chat import ChatCompletion
 import json
@@ -11,6 +11,9 @@ from tools.scraper_integration import ScraperManager
 load_dotenv()
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+logging.getLogger("httpx").disabled = True
+logging.getLogger("urllib3").disabled = True
 
 tools = [{
     "type": "function",
@@ -111,6 +114,8 @@ class AmazonShoppingAgent:
         
         Be judicious about when to search. Only perform a new search when truly necessary (such as when you cannot answer the 
         user's query based on the latest existing search results).
+
+        When including reviews in your response, make sure to include a summary of the reviews.
         """
 
         try:
@@ -139,7 +144,6 @@ class AmazonShoppingAgent:
                 for tool_call in assistant_message.tool_calls:
                     tool_name = tool_call.function.name
                     args = json.loads(tool_call.function.arguments)
-                    logger.info(f"Using tool: {tool_name}")
 
                     if tool_name == "search_amazon":
                         search_results = self._search_amazon_tool(**args)
@@ -182,7 +186,6 @@ class AmazonShoppingAgent:
         """
         try:
             search_preferences = SearchPreferences(**kwargs)
-            logger.info(f"Agent searching for {search_preferences.query} on Amazon....")
             products = self.scraper_manager.search_amazon(search_preferences)
             return products
         except Exception as e:

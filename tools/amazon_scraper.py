@@ -17,8 +17,14 @@ from typing import List
 logger = logging.getLogger(__name__)
 logger.disabled = True
 
+logging.getLogger('selenium').disabled = True
+logging.getLogger('urllib3').disabled = True
+logging.getLogger("httpx").disabled = True
+logging.getLogger('openai').disabled = True
+logging.getLogger('webdriver_manager').disabled = True
+
 class AmazonScraper:
-    def __init__(self, headless: bool = True, user_agent: Optional[str] = None):
+    def __init__(self, headless: bool = True):
             """
             Initialize the AmazonScraper with browser configuration.
             """
@@ -41,7 +47,6 @@ class AmazonScraper:
         return random.choice(user_agents)
     
     def _search_for_product(self, product: str) -> None:
-        logging.info(f"Searching for {product} on Amazon")
         try:
             search_box = WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located((By.ID, "twotabsearchtextbox"))
@@ -74,9 +79,6 @@ class AmazonScraper:
             options.add_argument(f'user-agent={self.user_agent}')
             options.add_argument('--disable-dev-shm-usage')
             options.add_argument('--no-sandbox')
-            ## This only works with selenium
-            # options.add_experimental_option("excludeSwitches", ["enable-automation"])
-            # options.add_experimental_option("useAutomationExtension", False)
             driver = uc.Chrome(options=options)
             driver.set_window_size(1920, 1080)
                 
@@ -117,119 +119,8 @@ class AmazonScraper:
         except Exception as e:
             logger.error(f"Error setting up WebDriver: {e}")
             raise
-    def _visit_product_page(self, product_url, product_info):
-        """
-        Visit a product page to extract detailed information like description and reviews.
-        """
-        try:
-            logging.info(f"Visiting product page: {product_url}")
-            self.driver.get(product_url)
-            
-            time.sleep(random.uniform(3, 5))
-            
-            try:
-                description_element = WebDriverWait(self.driver, 5).until(
-                    EC.presence_of_element_located((
-                        By.CSS_SELECTOR, "#productDescription p, #feature-bullets .a-list-item, #aplus p"
-                    ))
-                )
-                product_info.description = description_element.text.strip()
-            except:
-                logging.info("Description not found")
-            
-            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight/1.5);")
-            time.sleep(random.uniform(1, 2))
-        
-            try:
-                try:
-                    see_all_reviews = WebDriverWait(self.driver, 3).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, "a[data-hook='see-all-reviews-link-foot']"))
-                    )
-                    see_all_reviews.click()
-                    time.sleep(random.uniform(2, 3))
-                except:
-                    pass
-                review_elements = self.driver.find_elements(
-                    By.CSS_SELECTOR, "div[data-hook='review-body'] span"
-                )
-                
-                reviews = []
-                for review_element in review_elements[:5]:  # Limit to first 5 reviews
-                    review_text = review_element.text.strip()
-                    if review_text:
-                        reviews.append(review_text)
-                
-                if reviews:
-                    product_info.reviews = reviews
-                    
-            except Exception as e:
-                logging.info(f"Reviews not found: {e}")
-        
-        except Exception as e:
-            logging.error(f"Error visiting product page: {e}")
 
-    def _extract_product_title(self, product_element):
-        try:
-            title_div = product_element.find_element(By.CSS_SELECTOR, "div[data-cy='title-recipe']")
-            return title_div.text.strip()
-        except Exception as e:
-            logging.error(f"Error extracting product title: {e}")
-            return ""
-
-    def _extract_basic_product_info(self, product_element) -> Optional[ProductInfo]:
-        """
-        Extract basic product information from a search result element.
-        """
-        try:
-            product_name = self._extract_product_title(product_element)
-            try:
-                price_whole = product_element.find_element(
-                    By.CSS_SELECTOR, "span.a-price-whole"
-                ).text.replace(",", "").strip()
-                
-                price_fraction = product_element.find_element(
-                    By.CSS_SELECTOR, "span.a-price-fraction"
-                ).text.strip()
-                
-                price = float(f"{price_whole}.{price_fraction}")
-            except:
-                try:
-                    price_text = product_element.find_element(
-                        By.CSS_SELECTOR, "span.a-offscreen"
-                    ).get_attribute("innerHTML")
-                    
-                    price = float(price_text.replace("$", "").replace(",", "").strip())
-                except:
-                    price = 0.0
-            
-            # Extract rating
-            try:
-                rating_element = product_element.find_element(
-                    By.CSS_SELECTOR, "span.a-icon-alt"
-                )
-                rating_text = rating_element.get_attribute("innerHTML")
-                rating = float(rating_text.split(" ")[0])
-            except:
-                rating = 0.0
-            
-            try:
-                product_element.find_element(
-                    By.CSS_SELECTOR, "i.a-icon-prime"
-                )
-                is_prime_eligible = True
-            except:
-                is_prime_eligible = False
-            
-            return ProductInfo(
-                product_name=product_name,
-                price=price,
-                rating=rating,
-                is_prime_eligible=is_prime_eligible
-            )
-            
-        except Exception as e:
-            logging.error(f"Error extracting basic product info: {e}")
-            return None
+    
     def _extract_product_link(self, product_element) -> str:
         """
         Extract the product link from a product element.
@@ -306,7 +197,7 @@ class AmazonScraper:
         
         for i, link in enumerate(product_links):
             try:
-                logging.info(f"Processing product {i+1}/{len(product_links)}: {link}")
+                logging.info(f"Processing product {i+1}/{len(product_links)}")
                 
                 self.driver.get(link)
                 
@@ -541,7 +432,6 @@ class AmazonScraper:
             return []
         
         finally:
-            # Only close the driver if we started it in this method
             if start_new_session and driver_started:
                 self.close()
 

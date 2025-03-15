@@ -6,6 +6,8 @@ from .amazon_scraper import AmazonScraper
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+logging.getLogger('webdriver_manager').disabled = True
+logging.getLogger('selenium').disabled = True
 
 class ScraperManager:
     def __init__(self, headless=True):

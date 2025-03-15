@@ -17,10 +17,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def format_agent_response(response):
-    terminal_width = os.get_terminal_size().columns
-    wrapped_text = textwrap.fill(response, width=min(terminal_width-5, 100))
-    return f"{Fore.BLUE}{wrapped_text}{Style.RESET_ALL}"
 
 def print_welcome_message():
     print(f"\n{Fore.CYAN}==================================================")
@@ -66,10 +62,7 @@ def main():
             try:
                 print(f"{Fore.YELLOW}Processing your request...{Style.RESET_ALL}")
                 response = agent.process_query(user_input)
-                print(f"\n{Fore.BLUE}Assistant: {Style.RESET_ALL}{format_agent_response(response)}\n")
-                
-                logger.info(f"User: {user_input}")
-                logger.info(f"Assistant: {response}")
+                print(f"\n{Fore.BLUE}Assistant: {response}\n")
                 
             except Exception as e:
                 error_message = f"An error occurred: {str(e)}"
